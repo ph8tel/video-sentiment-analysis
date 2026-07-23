@@ -16,6 +16,11 @@ node_modules/
 dist/
 build/
 
+# Virtualenvs / conda envs
+.venv/
+venv/
+.conda/
+
 # Editor
 .vscode/settings.json
 .idea/
