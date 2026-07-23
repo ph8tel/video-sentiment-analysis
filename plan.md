@@ -99,12 +99,16 @@ video-sentiment-analysis/
 - [x] `.env.example`
 - [x] `.gitignore`
 
-### 🔲 Phase 2 — FFmpeg Overlay Service (port 8001)
-- [ ] FastAPI app + Pydantic models (`TimelineEntry`)
-- [ ] `filter_generator.py`: builds `drawbox` filter string (FFmpeg uses `0x` prefix, not `#`)
-- [ ] `POST /preview` → returns filter chain JSON (no FFmpeg or video needed)
-- [ ] `POST /render` → multipart upload → MP4 response via `asyncio.create_subprocess_exec`
-- [ ] `Dockerfile`: `python:3.11-slim` + `apt-get install ffmpeg`
+### ✅ Phase 2 — FFmpeg Overlay Service (port 8001)
+- [x] FastAPI app + Pydantic models (`TimelineEntry`)
+- [x] `filter_generator.py`: builds `drawbox` filter string (FFmpeg uses `0x` prefix, not `#`)
+- [x] `POST /preview` → returns filter chain JSON (no FFmpeg or video needed)
+- [x] `POST /render` → multipart upload → MP4 response via `asyncio.create_subprocess_exec`
+- [x] `Dockerfile`: `python:3.11-slim` + `apt-get install ffmpeg`
+- [x] Unit tests (`test_filter_generator.py`) — no FFmpeg required
+- [x] API tests (`test_preview.py`) — no FFmpeg required
+- [x] Render integration tests (`test_render.py`) — auto-skip if FFmpeg unavailable
+- [x] Tiny video fixture generated at test time (not committed to git)
 
 ### 🔲 Phase 3 — Sentiment Scoring Service (port 8002)
 - [ ] `color_mapper.py`: tone enum → `{hex, score}`
