@@ -119,18 +119,19 @@ video-sentiment-analysis/
 - [x] Unit tests: `test_color_mapper.py`, `test_llm_client.py` (respx mocks), `test_scorer.py` (MockLLMClient)
 - [x] API tests: `test_api.py` with FastAPI dependency override — zero real LLM calls
 
-### 🔲 Phase 4 — Dashboard UI (port 3000) *(intentionally minimal — will be replaced)*
-- [ ] Vite + React + TypeScript scaffold
-- [ ] `FileUpload`: drag-and-drop `sentiment_timeline.json` (pure client-side)
-- [ ] `ChunkTimeline`: Recharts `BarChart` — x=time, y=score, fill=tone hex
-- [ ] `SentimentChart`: Recharts `LineChart` — rolling average trend
-- [ ] `ChunkInspector`: click bar → side panel with text, tone, score, time range
-- [ ] `Dockerfile`: node build → `nginx:alpine`
+### ✅ Phase 4 — Dashboard UI (port 3000) *(intentionally minimal — will be replaced)*
+- [x] Vite + React + TypeScript scaffold (`vite.config.ts`, `tsconfig.json`, `package.json`)
+- [x] `FileUpload`: drag-and-drop `sentiment_timeline.json` (pure client-side)
+- [x] `ChunkTimeline`: Recharts `BarChart` — x=time, y=score, fill=tone hex; click to select
+- [x] `SentimentChart`: Recharts `LineChart` — raw scores + rolling average (window=3) + overall `ReferenceLine`
+- [x] `ChunkInspector`: click bar → side panel with text, tone, score, time range
+- [x] `Dockerfile`: node build → `nginx:alpine`; `nginx.conf` SPA fallback
+- [x] 53 Vitest tests passing (7 files: utils, components, App)
 
-### 🔲 Phase 5 — Integration
-- [ ] Complete `docker-compose.yml`
-- [ ] End-to-end smoke test with sample data
-- [ ] README with prerequisites (`ollama pull llama3.1:8b` on Ollama machine)
+### ✅ Phase 5 — Integration
+- [x] Complete `docker-compose.yml` — healthchecks on both API services; `depends_on` for dashboard
+- [x] `smoke_test.sh` — verifies `/health` on both API services, `/preview` response shape, `/score` (200 or 502), dashboard SPA
+- [x] Root `README.md` updated — Ollama setup, quick start, e2e usage, all service test commands
 
 ---
 

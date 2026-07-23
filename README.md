@@ -63,6 +63,9 @@ docker compose up --build
 #   http://localhost:8001  — FFmpeg Overlay
 #   http://localhost:8002  — Sentiment Scoring
 #   http://localhost:3000  — Dashboard
+
+# 3. Verify all services are healthy
+./smoke_test.sh
 ```
 
 ---
@@ -160,4 +163,15 @@ make test-unit
 make test
 ```
 
-End-to-end tests (requires all services running via Docker Compose) will be added post-MVP in [`tests/e2e/`](tests/e2e/).
+```bash
+# Dashboard — Vitest (53 tests, no build step needed)
+cd services/dashboard
+npm install --cache "$TMPDIR/.npm-cache"
+npx vitest run
+```
+
+For a live sanity check against running services:
+```bash
+# Requires: docker compose up --build (see Quick start)
+./smoke_test.sh
+```
