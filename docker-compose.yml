@@ -7,6 +7,12 @@ services:
       - "8001:8001"
     environment:
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-500}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   sentiment-scoring:
@@ -19,6 +25,13 @@ services:
       OLLAMA_HOST: ${OLLAMA_HOST:-http://192.168.1.108:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   dashboard:
@@ -26,4 +39,9 @@ services:
       context: ./services/dashboard
     ports:
       - "3000:80"
+    depends_on:
+      ffmpeg-overlay:
+        condition: service_healthy
+      sentiment-scoring:
+        condition: service_healthy
     restart: unless-stopped
