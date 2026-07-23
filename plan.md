@@ -110,12 +110,14 @@ video-sentiment-analysis/
 - [x] Render integration tests (`test_render.py`) — auto-skip if FFmpeg unavailable
 - [x] Tiny video fixture generated at test time (not committed to git)
 
-### 🔲 Phase 3 — Sentiment Scoring Service (port 8002)
-- [ ] `color_mapper.py`: tone enum → `{hex, score}`
-- [ ] `llm_client.py`: provider abstraction — routes via `LLM_PROVIDER` env var to `OllamaClient` or `GroqClient` (env-var swap only, no code changes)
-- [ ] `scorer.py`: prompt template enforcing `{"tone": ..., "score": ...}` JSON; Pydantic validation
-- [ ] `POST /score` → `[{start, end, text}]` → full `sentiment_timeline.json`
-- [ ] `Dockerfile`: `python:3.11-slim`
+### ✅ Phase 3 — Sentiment Scoring Service (port 8002)
+- [x] `color_mapper.py`: tone enum → hex + score + `score_to_tone()` mapper
+- [x] `llm_client.py`: `OllamaClient` + `GroqClient` behind `LLMClient` ABC; `get_llm_client()` factory driven by `LLM_PROVIDER` env var
+- [x] `scorer.py`: Pydantic models, prompt template, `parse_llm_response()`, duration-weighted `score_transcript()`
+- [x] `POST /score` → `[{start, end, text}]` → full `sentiment_timeline.json`; 502 on LLM errors
+- [x] `Dockerfile`: `python:3.11-slim`
+- [x] Unit tests: `test_color_mapper.py`, `test_llm_client.py` (respx mocks), `test_scorer.py` (MockLLMClient)
+- [x] API tests: `test_api.py` with FastAPI dependency override — zero real LLM calls
 
 ### 🔲 Phase 4 — Dashboard UI (port 3000) *(intentionally minimal — will be replaced)*
 - [ ] Vite + React + TypeScript scaffold
