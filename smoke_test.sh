@@ -23,10 +23,10 @@ echo "=== Smoke test: FFmpeg Overlay ($FFMPEG_URL) ==="
 STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$FFMPEG_URL/health")
 [[ "$STATUS" == "200" ]] && pass "GET /health → 200" || fail "GET /health returned $STATUS"
 
-# Preview endpoint with sample timeline
+# Preview endpoint — /preview expects a JSON array of TimelineEntry, not the full timeline object
 PREVIEW=$(curl -sf -X POST "$FFMPEG_URL/preview" \
   -H "Content-Type: application/json" \
-  -d @examples/sample_timeline.json)
+  -d "$(jq -c '.chunks' examples/sample_timeline.json)")
 echo "$PREVIEW" | jq -e '.filter_chain | type == "string"' > /dev/null \
   && pass "POST /preview → filter_chain string" \
   || fail "POST /preview returned unexpected body: $PREVIEW"
