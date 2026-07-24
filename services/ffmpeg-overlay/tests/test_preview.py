@@ -85,7 +85,8 @@ class TestPreviewEndpoint:
         from pathlib import Path
         import filter_generator as fg
         import pytest
-        emoji_dir = Path('services/ffmpeg-overlay/assets/emoji')
+        
+        emoji_dir = fg.EMOJI_ASSET_DIR
         print(f"Checking for emoji assets in {emoji_dir}, exists={emoji_dir.exists()}")
         if not emoji_dir.exists():
             pytest.skip(f"Emoji assets {emoji_dir} not present — skipping filter_complex assertion")

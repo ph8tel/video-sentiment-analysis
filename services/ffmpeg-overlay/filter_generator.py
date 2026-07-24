@@ -5,7 +5,7 @@ from typing import List
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 _HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
-EMOJI_ASSET_DIR = Path('services/ffmpeg-overlay/assets/emoji')
+EMOJI_ASSET_DIR = Path(__file__).parent / 'assets' / 'emoji'
 
 # Inclusive score ranges → tone file stem (matches filenames in EMOJI_ASSET_DIR)
 _SCORE_RANGES: list[tuple[int, int, str]] = [
@@ -78,7 +78,7 @@ def build_filter_chain(entries: List[TimelineEntry], opacity: float = 0.7) -> st
 
 def build_filter_graph(
     entries: List[TimelineEntry],
-    emoji_dir: Path = EMOJI_ASSET_DIR,
+    emoji_dir: Path | None = None,
     emoji_x: int = 68,
     emoji_y: int = 68,
 ) -> tuple[list[Path], str]:
@@ -105,6 +105,8 @@ def build_filter_graph(
     ValueError
         If *entries* is empty.
     """
+    if emoji_dir is None:
+        emoji_dir = EMOJI_ASSET_DIR
     if not entries:
         raise ValueError("entries must not be empty")
     emoji_paths: list[Path] = []
