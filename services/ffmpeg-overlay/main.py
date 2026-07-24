@@ -4,11 +4,12 @@ import os
 import shutil
 import tempfile
 from typing import List
+from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from filter_generator import TimelineEntry, build_filter_chain
+from filter_generator import TimelineEntry, build_filter_chain, build_filter_graph
 
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "500"))
 MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
@@ -23,11 +24,19 @@ async def health():
 
 @app.post("/preview")
 async def preview(timeline: List[TimelineEntry]):
-    """Return the FFmpeg drawbox filter chain for a given timeline without rendering."""
+    """Return filter strings for a given timeline without rendering."""
     if not timeline:
         raise HTTPException(status_code=422, detail="timeline must not be empty")
-    return {"filter_chain": build_filter_chain(timeline)}
 
+    result: dict = {"filter_chain": build_filter_chain(timeline)}
+    try:
+        _, filter_complex = build_filter_graph(timeline)
+        result["filter_complex"] = filter_complex
+    except FileNotFoundError:
+        # Assets not present in this environment (e.g. bare dev checkout
+        # without the emoji directory); degrade gracefully for preview only.
+        pass
+    return result      
 
 @app.post("/render")
 async def render(
@@ -79,14 +88,24 @@ async def render(
     with open(input_path, "wb") as fh:
         fh.write(video_bytes)
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", input_path,
-        "-vf", filter_chain,
+    emoji_paths, filter_complex = build_filter_graph(entries)
+    # Copy emoji PNGs into tmpdir so subprocess paths are simple and safe
+    local_emoji: list[str] = []
+
+    for idx , src in enumerate(emoji_paths):
+        dst = os.path.join(tmpdir, f"emoji_{idx}.png")
+        shutil.copy2(src, dst)
+        local_emoji.append(dst)
+    # Build FFmpeg command with multiple inputs and filter_complex
+    cmd = ["ffmpeg", "-y", "-i", input_path]
+    for ep in local_emoji:
+        cmd += ["-i", ep]
+    cmd += [
+        "-filter_complex", filter_complex,
+        "-map", "[out]",
         "-c:a", "copy",
         output_path,
     ]
-
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,

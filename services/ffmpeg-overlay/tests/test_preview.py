@@ -74,3 +74,32 @@ class TestPreviewEndpoint:
             {"start": 0.0, "end": 5.0, "score": 6}  # missing color
         ])
         assert response.status_code == 422
+
+    def test_preview_includes_filter_chain_key(self, client, sample_timeline):
+        response = client.post("/preview", json=sample_timeline)
+        assert "filter_chain" in response.json()
+
+    def test_preview_filter_complex_contains_overlay_when_assets_present(self, client, sample_timeline):
+        """filter_complex key is present only when emoji assets exist on disk."""
+        import os
+        from pathlib import Path
+        import filter_generator as fg
+        import pytest
+        emoji_dir = Path('services/ffmpeg-overlay/assets/emoji')
+        print(f"Checking for emoji assets in {emoji_dir}, exists={emoji_dir.exists()}")
+        if not emoji_dir.exists():
+            pytest.skip(f"Emoji assets {emoji_dir} not present — skipping filter_complex assertion")
+        response = client.post("/preview", json=sample_timeline)
+        assert "filter_complex" in response.json()
+        assert "overlay=" in response.json()["filter_complex"]
+
+    def test_preview_filter_complex_absent_without_assets(self, client, monkeypatch, tmp_path):
+        """filter_complex key is omitted gracefully when assets directory is empty."""
+        import filter_generator as fg
+        monkeypatch.setattr(fg, "EMOJI_ASSET_DIR", tmp_path / "nonexistent")
+        response = client.post("/preview", json=[
+            {"start": 0.0, "end": 3.0, "score": 5, "color": "#CCCCCC"}
+        ])
+        assert response.status_code == 200
+        assert "filter_chain" in response.json()
+        assert "filter_complex" not in response.json()
