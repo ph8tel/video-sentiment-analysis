@@ -10,7 +10,127 @@ const chunk: ScoredChunk = {
   score: 2,
   color: "#FF4500",
   text: "Unfortunately there were setbacks.",
+  anger_level: 1,
+  frustration_level: 2,
+  sarcasm_flag: false,
 };
+
+describe("ChunkInspector — empty state", () => {
+  it("renders when no chunk is selected", () => {
+    render(<ChunkInspector chunk={null} />);
+    expect(screen.getByTestId("chunk-inspector-empty")).toBeInTheDocument();
+  });
+
+  it("shows a prompt to click a chunk", () => {
+    render(<ChunkInspector chunk={null} />);
+    expect(screen.getByText(/click a chunk/i)).toBeInTheDocument();
+  });
+
+  it("does not render the detail table", () => {
+    render(<ChunkInspector chunk={null} />);
+    expect(screen.queryByTestId("chunk-inspector")).not.toBeInTheDocument();
+  });
+});
+
+describe("ChunkInspector — with chunk", () => {
+  it("renders the inspector panel", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-inspector")).toBeInTheDocument();
+  });
+
+  it("does not render the empty state", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.queryByTestId("chunk-inspector-empty")).not.toBeInTheDocument();
+  });
+
+  it("displays start and end time", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-time")).toHaveTextContent("12.40s – 15.80s");
+  });
+
+  it("displays tone", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-tone")).toHaveTextContent("NEGATIVE");
+  });
+
+  it("displays score out of 10", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-score")).toHaveTextContent("2 / 10");
+  });
+
+  it("displays hex color value", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-color")).toHaveTextContent("#FF4500");
+  });
+
+  it("renders the color swatch with correct background", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    const swatch = screen.getByTestId("chunk-color-swatch");
+    expect(swatch).toHaveStyle({ background: "#FF4500" });
+  });
+
+  it("displays the chunk text", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-text")).toHaveTextContent(chunk.text);
+  });
+
+  it("displays anger level with value out of 3", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-anger")).toHaveTextContent("1 / 3");
+  });
+
+  it("displays frustration level with value out of 3", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-frustration")).toHaveTextContent("2 / 3");
+  });
+
+  it("displays sarcasm as not detected when false", () => {
+    render(<ChunkInspector chunk={chunk} />);
+    expect(screen.getByTestId("chunk-sarcasm")).toHaveTextContent("✗ None");
+  });
+
+  it("displays sarcasm as detected when true", () => {
+    const sarcastic: ScoredChunk = { ...chunk, sarcasm_flag: true };
+    render(<ChunkInspector chunk={sarcastic} />);
+    expect(screen.getByTestId("chunk-sarcasm")).toHaveTextContent("✓ Detected");
+  });
+
+  it("displays anger emoji for level 0", () => {
+    const noAnger: ScoredChunk = { ...chunk, anger_level: 0 };
+    render(<ChunkInspector chunk={noAnger} />);
+    expect(screen.getByTestId("chunk-anger")).toHaveTextContent("😐");
+  });
+
+  it("displays anger emoji for level 3", () => {
+    const maxAnger: ScoredChunk = { ...chunk, anger_level: 3 };
+    render(<ChunkInspector chunk={maxAnger} />);
+    expect(screen.getByTestId("chunk-anger")).toHaveTextContent("💥");
+  });
+
+  it("updates when a different chunk is passed", () => {
+    const { rerender } = render(<ChunkInspector chunk={chunk} />);
+    const otherChunk: ScoredChunk = {
+      ...chunk,
+      tone: "VERY_POSITIVE",
+      score: 10,
+      color: "#008000",
+      anger_level: 0,
+      frustration_level: 0,
+      sarcasm_flag: true,
+    };
+    rerender(<ChunkInspector chunk={otherChunk} />);
+    expect(screen.getByTestId("chunk-tone")).toHaveTextContent("VERY_POSITIVE");
+    expect(screen.getByTestId("chunk-score")).toHaveTextContent("10 / 10");
+    expect(screen.getByTestId("chunk-sarcasm")).toHaveTextContent("✓ Detected");
+  });
+
+  it("transitions back to empty state when chunk becomes null", () => {
+    const { rerender } = render(<ChunkInspector chunk={chunk} />);
+    rerender(<ChunkInspector chunk={null} />);
+    expect(screen.getByTestId("chunk-inspector-empty")).toBeInTheDocument();
+  });
+});
+
 
 describe("ChunkInspector — empty state", () => {
   it("renders when no chunk is selected", () => {

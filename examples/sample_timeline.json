@@ -6,7 +6,10 @@
       "tone": "SLIGHTLY_POSITIVE",
       "score": 6,
       "color": "#90EE90",
-      "text": "Hello everyone, welcome back to the channel."
+      "text": "Hello everyone, welcome back to the channel.",
+      "anger_level": 0,
+      "frustration_level": 0,
+      "sarcasm_flag": false
     },
     {
       "start": 3.2,
@@ -14,7 +17,10 @@
       "tone": "POSITIVE",
       "score": 8,
       "color": "#32CD32",
-      "text": "Today we're going to talk about something really exciting."
+      "text": "Today we're going to talk about something really exciting.",
+      "anger_level": 0,
+      "frustration_level": 0,
+      "sarcasm_flag": false
     },
     {
       "start": 7.5,
@@ -22,7 +28,10 @@
       "tone": "VERY_POSITIVE",
       "score": 10,
       "color": "#008000",
-      "text": "I've been working on this project for months and I'm so proud of how it turned out."
+      "text": "I've been working on this project for months and I'm so proud of how it turned out.",
+      "anger_level": 0,
+      "frustration_level": 0,
+      "sarcasm_flag": false
     },
     {
       "start": 12.1,
@@ -30,7 +39,10 @@
       "tone": "NEGATIVE",
       "score": 2,
       "color": "#FF4500",
-      "text": "Unfortunately there were some setbacks along the way that were really frustrating."
+      "text": "Unfortunately there were some setbacks along the way that were really frustrating.",
+      "anger_level": 1,
+      "frustration_level": 2,
+      "sarcasm_flag": false
     },
     {
       "start": 16.8,
@@ -38,7 +50,10 @@
       "tone": "SLIGHTLY_POSITIVE",
       "score": 6,
       "color": "#90EE90",
-      "text": "But we pushed through and the results speak for themselves."
+      "text": "But we pushed through and the results speak for themselves.",
+      "anger_level": 0,
+      "frustration_level": 1,
+      "sarcasm_flag": false
     },
     {
       "start": 21.4,
@@ -46,7 +61,10 @@
       "tone": "POSITIVE",
       "score": 8,
       "color": "#32CD32",
-      "text": "Let me show you what we built."
+      "text": "Let me show you what we built.",
+      "anger_level": 0,
+      "frustration_level": 0,
+      "sarcasm_flag": false
     }
   ],
   "overall": {

@@ -4,6 +4,7 @@ import { FileUpload } from "./components/FileUpload";
 import { PipelineUpload } from "./components/PipelineUpload";
 import { ChunkTimeline } from "./components/ChunkTimeline";
 import { SentimentChart } from "./components/SentimentChart";
+import { EmotionChart } from "./components/EmotionChart";
 import { ChunkInspector } from "./components/ChunkInspector";
 
 export function App() {
@@ -159,6 +160,9 @@ export function App() {
               />
               <div style={{ marginTop: 24 }}>
                 <SentimentChart chunks={timeline.chunks} overall={timeline.overall} />
+              </div>
+              <div style={{ marginTop: 24 }}>
+                <EmotionChart chunks={timeline.chunks} />
               </div>
             </div>
             <div

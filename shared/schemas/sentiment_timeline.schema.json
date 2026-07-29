@@ -25,7 +25,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["start", "end", "tone", "score", "color", "text"],
+        "required": ["start", "end", "tone", "score", "color", "text", "anger_level", "frustration_level", "sarcasm_flag"],
         "additionalProperties": false,
         "properties": {
           "start": {
@@ -56,6 +56,22 @@
           "text": {
             "type": "string",
             "description": "Original transcript text for this chunk."
+          },
+          "anger_level": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Anger intensity: 0=none (\ud83d\ude10), 1=mild (\ud83d\ude20), 2=strong (\ud83d\ude21), 3=intense (\ud83d\udca5)."
+          },
+          "frustration_level": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Frustration intensity: 0=none (\ud83d\ude10), 1=mild (\ud83d\ude24), 2=strong (\ud83d\ude23), 3=intense (\ud83e\udd2c)."
+          },
+          "sarcasm_flag": {
+            "type": "boolean",
+            "description": "True when the chunk contains detectable sarcasm or irony."
           }
         }
       }

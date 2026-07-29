@@ -14,6 +14,9 @@ export interface ScoredChunk {
   score: number;
   color: string;
   text: string;
+  anger_level: number;       // 0–3: 😐 😠 😡 💥
+  frustration_level: number; // 0–3: 😐 😤 😣 🤬
+  sarcasm_flag: boolean;
 }
 
 export interface OverallScore {

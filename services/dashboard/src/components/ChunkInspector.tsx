@@ -1,5 +1,8 @@
 import { ScoredChunk } from "../types/sentiment";
 
+const ANGER_EMOJI = ["😐", "😠", "😡", "💥"] as const;
+const FRUSTRATION_EMOJI = ["😐", "😤", "😣", "🤬"] as const;
+
 interface Props {
   chunk: ScoredChunk | null;
 }
@@ -54,6 +57,24 @@ export function ChunkInspector({ chunk }: Props) {
                 }}
               />
               <span data-testid="chunk-color">{chunk.color}</span>
+            </td>
+          </tr>
+          <tr>
+            <td style={labelStyle}>Anger</td>
+            <td data-testid="chunk-anger">
+              {ANGER_EMOJI[chunk.anger_level]} {chunk.anger_level} / 3
+            </td>
+          </tr>
+          <tr>
+            <td style={labelStyle}>Frustration</td>
+            <td data-testid="chunk-frustration">
+              {FRUSTRATION_EMOJI[chunk.frustration_level]} {chunk.frustration_level} / 3
+            </td>
+          </tr>
+          <tr>
+            <td style={labelStyle}>Sarcasm</td>
+            <td data-testid="chunk-sarcasm">
+              {chunk.sarcasm_flag ? "✓ Detected" : "✗ None"}
             </td>
           </tr>
           <tr>

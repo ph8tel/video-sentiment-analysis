@@ -4,8 +4,8 @@ Sentiment scoring pipeline.
 Responsibilities
 ────────────────
   - Define the data models used across the service
-  - Build the LLM prompt
-  - Parse and validate the LLM's JSON response
+  - Build the LLM prompts (sentiment tone + emotion analysis)
+  - Parse and validate the LLM's JSON responses
   - Score individual chunks and aggregate an overall result
 """
 
@@ -27,12 +27,15 @@ class TranscriptChunk(BaseModel):
 
 
 class ScoredChunk(BaseModel):
-    start: float
-    end:   float
-    tone:  Tone
-    score: int   = Field(..., ge=0, le=10)
-    color: str
-    text:  str
+    start:             float
+    end:               float
+    tone:              Tone
+    score:             int  = Field(..., ge=0, le=10)
+    color:             str
+    text:              str
+    anger_level:       int  = Field(..., ge=0, le=3)
+    frustration_level: int  = Field(..., ge=0, le=3)
+    sarcasm_flag:      bool
 
 
 class OverallScore(BaseModel):
@@ -46,7 +49,7 @@ class SentimentResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Prompt
+# Sentiment tone prompt
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """\
@@ -69,6 +72,29 @@ def build_prompt(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Emotion prompt (anger, frustration, sarcasm)
+# ---------------------------------------------------------------------------
+
+_EMOTION_SYSTEM_PROMPT = """\
+You are an emotion analysis assistant. Detect anger, frustration, and sarcasm in the text.
+
+Respond ONLY with a JSON object in exactly this format:
+{"anger_level": <NUMBER>, "frustration_level": <NUMBER>, "sarcasm_flag": <BOOLEAN>}
+
+Rules:
+- "anger_level" must be an integer from 0 to 3 (0=none, 1=mild, 2=strong, 3=intense)
+- "frustration_level" must be an integer from 0 to 3 (0=none, 1=mild, 2=strong, 3=intense)
+- "sarcasm_flag" must be true or false
+
+No explanation. No extra fields. JSON only.\
+"""
+
+
+def build_emotion_prompt(text: str) -> str:
+    return f"{_EMOTION_SYSTEM_PROMPT}\n\nText to analyze:\n{text}"
+
+
+# ---------------------------------------------------------------------------
 # Response parsing
 # ---------------------------------------------------------------------------
 
@@ -79,7 +105,7 @@ class _LLMResponse(BaseModel):
 
 def parse_llm_response(raw: str) -> _LLMResponse:
     """
-    Parse and validate the LLM's JSON output.
+    Parse and validate the LLM's JSON output for tone/score.
 
     Raises ValueError on invalid JSON or schema violations so the caller
     can return a clean HTTP error rather than an unhandled exception.
@@ -97,15 +123,54 @@ def parse_llm_response(raw: str) -> _LLMResponse:
         ) from exc
 
 
+class _EmotionResponse(BaseModel):
+    anger_level:       int  = Field(..., ge=0, le=3)
+    frustration_level: int  = Field(..., ge=0, le=3)
+    sarcasm_flag:      bool
+
+
+def parse_emotion_response(raw: str) -> _EmotionResponse:
+    """
+    Parse and validate the LLM's JSON output for anger/frustration/sarcasm.
+
+    Raises ValueError on invalid JSON or schema violations.
+    """
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"LLM returned invalid JSON: {exc!s}\nRaw: {raw!r}") from exc
+
+    try:
+        return _EmotionResponse.model_validate(data)
+    except ValidationError as exc:
+        raise ValueError(
+            f"LLM emotion response failed validation: {exc!s}\nRaw: {raw!r}"
+        ) from exc
+
+
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
 
-async def score_chunk(chunk: TranscriptChunk, client: LLMClient) -> ScoredChunk:
-    """Score a single transcript chunk via the LLM client."""
-    prompt  = build_prompt(chunk.text)
-    raw     = await client.complete(prompt)
-    result  = parse_llm_response(raw)
+async def score_emotions(chunk: TranscriptChunk, client: LLMClient) -> _EmotionResponse:
+    """Score anger, frustration, and sarcasm for a single chunk."""
+    prompt = build_emotion_prompt(chunk.text)
+    raw    = await client.complete(prompt)
+    return parse_emotion_response(raw)
+
+
+async def score_chunk(
+    chunk: TranscriptChunk,
+    client: LLMClient,
+    emotion_client: LLMClient,
+) -> ScoredChunk:
+    """Score tone/sentiment and emotions for a single transcript chunk."""
+    prompt = build_prompt(chunk.text)
+    raw    = await client.complete(prompt)
+    result = parse_llm_response(raw)
+
+    emotion = await score_emotions(chunk, emotion_client)
+
     return ScoredChunk(
         start=chunk.start,
         end=chunk.end,
@@ -113,21 +178,26 @@ async def score_chunk(chunk: TranscriptChunk, client: LLMClient) -> ScoredChunk:
         score=result.score,
         color=tone_to_color(result.tone),
         text=chunk.text,
+        anger_level=emotion.anger_level,
+        frustration_level=emotion.frustration_level,
+        sarcasm_flag=emotion.sarcasm_flag,
     )
 
 
 async def score_transcript(
     chunks: list[TranscriptChunk],
     client: LLMClient,
+    emotion_client: LLMClient,
 ) -> SentimentResult:
     """
     Score all chunks and compute a duration-weighted overall sentiment.
 
     Chunks are scored sequentially to respect Ollama's concurrency limits.
+    Two LLM calls are made per chunk: one for tone/score, one for emotions.
     """
     scored: list[ScoredChunk] = []
     for chunk in chunks:
-        scored.append(await score_chunk(chunk, client))
+        scored.append(await score_chunk(chunk, client, emotion_client))
 
     # Duration-weighted average: longer chunks count for more
     total_duration = sum(c.end - c.start for c in scored)
