@@ -25,7 +25,7 @@ class LLMClient(abc.ABC):
 
 class OllamaClient(LLMClient):
     def __init__(self) -> None:
-        self.host  = os.getenv("OLLAMA_HOST",  "http://192.168.1.108:11434")
+        self.host  = os.getenv("OLLAMA_HOST",  "http://host.docker.internal:11434")
         self.model = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 
     async def complete(self, prompt: str) -> str:

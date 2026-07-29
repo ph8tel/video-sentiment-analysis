@@ -85,13 +85,14 @@ The active provider is selected by the `LLM_PROVIDER` environment variable. No c
 ### Ollama (default)
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_HOST=http://192.168.1.108:11434
+OLLAMA_HOST=http://host.docker.internal:11434
 OLLAMA_MODEL=llama3.1:8b
 ```
 The model must be pulled on the Ollama machine first:
 ```bash
 ollama pull llama3.1:8b
 ```
+When the scoring service runs in Docker on Linux and Ollama runs on the same host, use `http://host.docker.internal:11434`, not `http://0.0.0.0:11434` or `http://localhost:11434`.
 
 ### Groq (post-MVP)
 ```env
@@ -193,7 +194,8 @@ docker build -t sentiment-scoring .
 
 # Run standalone (Ollama must be reachable at OLLAMA_HOST)
 docker run -p 8002:8002 \
-  -e OLLAMA_HOST=http://192.168.1.108:11434 \
+  --add-host=host.docker.internal:host-gateway \
+  -e OLLAMA_HOST=http://host.docker.internal:11434 \
   -e OLLAMA_MODEL=llama3.1:8b \
   sentiment-scoring
 
