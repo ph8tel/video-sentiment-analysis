@@ -8,7 +8,7 @@ services:
     environment:
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-500}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -20,14 +20,16 @@ services:
       context: ./services/sentiment-scoring
     ports:
       - "8002:8002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      OLLAMA_HOST: ${OLLAMA_HOST:-http://192.168.1.108:11434}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 15s
       timeout: 5s
       retries: 3

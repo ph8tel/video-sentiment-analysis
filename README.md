@@ -54,7 +54,7 @@ Three independent services share a single JSON contract (`sentiment_timeline.jso
 ```bash
 # 1. Copy and edit the env file
 cp .env.example .env
-# Edit OLLAMA_HOST if your Ollama machine's IP differs from 192.168.1.108
+# If Ollama runs on another machine, set OLLAMA_HOST to that machine's LAN IP.
 
 # 2. Build and start all services
 docker compose up --build
@@ -112,7 +112,7 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 | Variable | Default | Description |
 |---|---|---|
 | `LLM_PROVIDER` | `ollama` | `ollama` for local, `groq` post-MVP |
-| `OLLAMA_HOST` | `http://192.168.1.108:11434` | LAN address of your Ollama machine |
+| `OLLAMA_HOST` | `http://host.docker.internal:11434` | Address the scoring container can reach; use a LAN IP if Ollama runs on another machine |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Model to use for scoring |
 | `GROQ_API_KEY` | *(empty)* | Set when switching to Groq |
 | `MAX_UPLOAD_SIZE_MB` | `500` | Max video upload size for the overlay service |
@@ -122,6 +122,8 @@ Switching from Ollama to Groq post-MVP requires only:
 LLM_PROVIDER=groq
 GROQ_API_KEY=your_key_here
 ```
+
+When running Docker on Linux, do not set `OLLAMA_HOST` to `http://0.0.0.0:11434` or `http://localhost:11434` for the scoring container. `0.0.0.0` is a bind address, not a destination, and `localhost` inside the container points to the container itself. Use `http://host.docker.internal:11434` when Ollama runs on the same host, or the host machine's LAN IP when Ollama runs elsewhere.
 
 ---
 
@@ -149,6 +151,25 @@ Schemas for both shared JSON contracts live in [`shared/schemas/`](shared/schema
 - [`sentiment_timeline.schema.json`](shared/schemas/sentiment_timeline.schema.json) — shared contract between all three services
 
 Sample data is in [`examples/`](examples/).
+
+If your source transcript arrives as repeated blocks like:
+
+```text
+0:03
+3 seconds
+okay so but will move against you first
+0:10
+10 seconds
+you'll set up a meeting with someone
+```
+
+convert it with:
+
+```bash
+/usr/local/bin/python3.12 scripts/convert_transcript.py raw_transcript.txt -o transcript.json
+```
+
+The converter uses each timestamp as the chunk `start`, the next timestamp as the prior chunk `end`, and estimates the last chunk length from earlier chunks unless you pass `--last-end` explicitly.
 
 ---
 

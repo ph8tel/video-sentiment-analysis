@@ -36,6 +36,13 @@ describe("App — initial state", () => {
     expect(screen.getByText(/Video Sentiment Dashboard/i)).toBeInTheDocument();
   });
 
+  it("shows the full pipeline uploader", () => {
+    render(<App />);
+    expect(screen.getByTestId("pipeline-upload")).toBeInTheDocument();
+    expect(screen.getByTestId("transcript-input")).toBeInTheDocument();
+    expect(screen.getByTestId("video-input")).toBeInTheDocument();
+  });
+
   it("shows the FileUpload component before any file is loaded", () => {
     render(<App />);
     expect(screen.getByTestId("file-upload")).toBeInTheDocument();
