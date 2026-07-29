@@ -1,9 +1,30 @@
 import re
+from pathlib import Path
 from typing import List
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 _HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+EMOJI_ASSET_DIR = Path(__file__).parent / 'assets' / 'emoji'
+
+# Inclusive score ranges → tone file stem (matches filenames in EMOJI_ASSET_DIR)
+_SCORE_RANGES: list[tuple[int, int, str]] = [
+    (0,  1,  "very_negative"),
+    (2,  2,  "negative"),
+    (3,  4,  "slightly_negative"),
+    (5,  5,  "neutral"),
+    (6,  7,  "slightly_positive"),
+    (8,  9,  "positive"),
+    (10, 10, "very_positive"),
+]
+
+
+def score_to_tone(score: int) -> str:
+    """Return the tone name (emoji file stem) for a sentiment score 0–10."""
+    for lo, hi, tone in _SCORE_RANGES:
+        if lo <= score <= hi:
+            return tone
+    raise ValueError(f"score must be 0–10, got {score}")
 
 
 class TimelineEntry(BaseModel):
@@ -36,7 +57,7 @@ def build_filter_chain(entries: List[TimelineEntry], opacity: float = 0.7) -> st
     Build a comma-separated FFmpeg drawbox filter chain.
 
     Each entry produces a filter segment:
-        drawbox=x=0:y=0:w=200:h=200:color=0xFF4500@0.70:t=fill:enable='between(t,12.4,15.8)'
+        drawbox=x=0:y=0:w=200:h=200:color=0xFF4500@0.7:t=fill:enable='between(t,12.4,15.8)'
 
     The resulting string is safe to pass directly to ``ffmpeg -vf``.
     """
@@ -48,8 +69,69 @@ def build_filter_chain(entries: List[TimelineEntry], opacity: float = 0.7) -> st
         color = hex_to_ffmpeg_color(entry.color)
         filters.append(
             f"drawbox=x=0:y=0:w=200:h=200:"
-            f"color={color}@{opacity:.2f}:t=fill:"
+            f"color={color}@{opacity:.1f}:t=fill:"
             f"enable='between(t,{entry.start},{entry.end})'"
         )
 
     return ",".join(filters)
+
+
+def build_filter_graph(
+    entries: List[TimelineEntry],
+    emoji_dir: Path | None = None,
+    emoji_x: int = 68,
+    emoji_y: int = 68,
+) -> tuple[list[Path], str]:
+    """
+    Build a full FFmpeg -filter_complex graph that combines drawbox color bands
+    with per-chunk emoji overlays.
+
+    Returns
+    -------
+    emoji_paths : list[Path]
+        One Path per timeline entry (may repeat tones). The caller must pass
+        each path as a separate ``-i`` argument to FFmpeg, in order starting
+        at input index 1. The last path corresponds to input ``[N:v]`` where
+        N == len(entries).
+    filter_complex : str
+        A semicolon-separated filter_complex string ready for ``ffmpeg -filter_complex``.
+        The final output stream is labeled ``[out]`` — the caller must pass
+        ``-map [out]`` to FFmpeg.
+    Raises
+    ------
+    FileNotFoundError
+        If any required emoji PNG is not found in *emoji_dir*. This is a
+        deployment error and should fail loudly.
+    ValueError
+        If *entries* is empty.
+    """
+    if emoji_dir is None:
+        emoji_dir = EMOJI_ASSET_DIR
+    if not entries:
+        raise ValueError("entries must not be empty")
+    emoji_paths: list[Path] = []
+    for entry in entries:
+        tone = score_to_tone(entry.score)
+        png = emoji_dir / f"{tone}.png"
+        if not png.exists():
+            raise FileNotFoundError(
+                f"Emoji asset missing: {png}. "
+                "Ensure assets/emoji/ is present in the deployment image."
+            )
+        emoji_paths.append(png)
+    # Part 1: apply all drawboxes to [0:v] → [boxed]
+    drawbox_chain = build_filter_chain(entries)
+    parts = [f"[0:v]{drawbox_chain}[boxed]"]
+    # Part 2: chain overlay filters, one per entry
+    # Input indices: video=0, emoji[0]=1, emoji[1]=2, …
+    prev_label = "boxed"
+    for i, entry in enumerate(entries):
+        out_label = "out" if i == len(entries) - 1 else f"s{i}"
+        parts.append(
+            f"[{prev_label}][{i + 1}:v]"
+            f"overlay={emoji_x}:{emoji_y}:"
+            f"enable='between(t,{entry.start},{entry.end})'"
+            f"[{out_label}]"
+        )
+        prev_label = out_label
+    return emoji_paths, ";".join(parts)

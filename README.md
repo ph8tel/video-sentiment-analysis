@@ -127,17 +127,19 @@ GROQ_API_KEY=your_key_here
 
 ## Sentiment tone map
 
-| Tone | Score | Color |
-|---|---|---|
-| VERY_NEGATIVE | 0 | `#FF0000` |
-| NEGATIVE | 2 | `#FF4500` |
-| SLIGHTLY_NEGATIVE | 3 | `#FFA500` |
-| NEUTRAL | 5 | `#CCCCCC` |
-| SLIGHTLY_POSITIVE | 6 | `#90EE90` |
-| POSITIVE | 8 | `#32CD32` |
-| VERY_POSITIVE | 10 | `#008000` |
 
+ Tone | Score | Color | Emoji |
+|---|---|---|---|
+| VERY_NEGATIVE | 0 | `#FF0000` | 😡 |
+| NEGATIVE | 2 | `#FF4500` | 😞 |
+| SLIGHTLY_NEGATIVE | 3 | `#FFA500` | 😕 |
+| NEUTRAL | 5 | `#CCCCCC` | 😐 |
+| SLIGHTLY_POSITIVE | 6 | `#90EE90` | 🙂 |
+| POSITIVE | 8 | `#32CD32` | 😊 |
+| VERY_POSITIVE | 10 | `#008000` | 😄 |
 ---
+
+Emoji graphics provided by [Twemoji](https://github.com/twitter/twemoji), Copyright 2019 Twitter, Inc and other contributors. Licensed under [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
 ## Data schemas
 
