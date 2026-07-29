@@ -113,20 +113,32 @@ def build_filter_chain(entries: List[TimelineEntry], opacity: float = 0.7) -> st
 def build_filter_graph(
     entries: List[TimelineEntry],
     emoji_dir: Path | None = None,
-    emoji_x: int = 68,
-    emoji_y: int = 68,
-    anger_x: int = 2,
-    anger_y: int = 202,
-    frustration_x: int = 2,
-    frustration_y: int = 270,
+    emoji_x: int = 88,
+    emoji_y: int = 88,
+    anger_x: int = 88,
+    anger_y: int = 212,
+    frustration_x: int = 88,
+    frustration_y: int = 322,
+    sentiment_label: str | None = "sentiment",
+    anger_label: str | None = "anger",
+    frustration_label: str | None = "frustration",
+    label_fontsize: int = 22,
+    label_fontcolor: str = "white",
+    label_boxcolor: str = "black@0.45",
+    label_offset_x: int = -56,
+    label_offset_y: int = 12,
 ) -> tuple[list[Path], str]:
     """
-    Build a full FFmpeg -filter_complex graph combining drawbox colour bands
-    with three rows of per-chunk emoji overlays:
+    Build a full FFmpeg -filter_complex graph combining drawbox colour bands,
+    optional row labels, and three rows of per-chunk emoji overlays:
 
       Row 1 (sentiment):    positioned at (emoji_x, emoji_y)
       Row 2 (anger):        positioned at (anger_x, anger_y)
-      Row 3 (frustration):  positioned at (frustration_x, frustration_y)
+            Row 3 (frustration):  positioned at (frustration_x, frustration_y)
+
+        Labels are rendered above each emoji row. Horizontal position is computed
+        as ``row_x + label_offset_x`` and vertical position as
+        ``row_y - label_fontsize - label_offset_y``.
 
     Returns
     -------
@@ -192,15 +204,41 @@ def build_filter_graph(
     drawbox_chain = build_filter_chain(entries)
     parts = [f"[0:v]{drawbox_chain}[boxed]"]
 
-    # Parts 2-4: chain overlay filters for each row.
+    def _escape_drawtext_text(text: str) -> str:
+        return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+
+    # Part 2: optional static labels for each row.
+    label_rows = [
+        (sentiment_label, emoji_x, emoji_y),
+        (anger_label, anger_x, anger_y),
+        (frustration_label, frustration_x, frustration_y),
+    ]
+    label_input = "boxed"
+    label_idx = 0
+    for text, row_x, row_y in label_rows:
+        if not text:
+            continue
+        next_label = f"label{label_idx}"
+        label_x = max(0, row_x + label_offset_x)
+        label_y = max(0, row_y - label_fontsize - label_offset_y)
+        parts.append(
+            f"[{label_input}]drawtext=text='{_escape_drawtext_text(text)}':"
+            f"x={label_x}:y={label_y}:"
+            f"fontcolor={label_fontcolor}:fontsize={label_fontsize}:"
+            f"box=1:boxcolor={label_boxcolor}[{next_label}]"
+        )
+        label_input = next_label
+        label_idx += 1
+
+    # Parts 3-5: chain overlay filters for each row.
     # Intermediate stream labels: p0, p1, … p{total_overlays-2}, then [out].
-    prev_label = "boxed"
-    label_idx  = 0  # counter for intermediate labels
+    prev_label = label_input
+    overlay_idx = 0  # counter for overlay intermediate labels
 
     def _overlay_part(input_idx: int, x: int, y: int, entry: TimelineEntry) -> str:
-        nonlocal prev_label, label_idx
-        is_last  = (label_idx == total_overlays - 1)
-        out_label = "out" if is_last else f"p{label_idx}"
+        nonlocal prev_label, overlay_idx
+        is_last  = (overlay_idx == total_overlays - 1)
+        out_label = "out" if is_last else f"p{overlay_idx}"
         part = (
             f"[{prev_label}][{input_idx}:v]"
             f"overlay={x}:{y}:"
@@ -208,7 +246,7 @@ def build_filter_graph(
             f"[{out_label}]"
         )
         prev_label = out_label
-        label_idx += 1
+        overlay_idx += 1
         return part
 
     # Row 1 — sentiment emoji (input indices 1..N)

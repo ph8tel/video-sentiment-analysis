@@ -302,22 +302,22 @@ class TestBuildFilterGraph:
         entry = TimelineEntry(start=12.4, end=15.8, score=5, color="#CCCCCC")
         _, fc = build_filter_graph([entry], emoji_dir=emoji_dir)
         # Timestamps appear for every row of overlays
-        assert fc.count("between(t,12.4,15.8)") == 3
+        assert fc.count("between(t,12.4,15.8)") == 4
 
     def test_sentiment_emoji_at_default_position(self, tmp_path):
         emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
         _, fc = build_filter_graph([self._entry()], emoji_dir=emoji_dir)
-        assert "overlay=68:68:" in fc
+        assert "overlay=88:88:" in fc
 
     def test_anger_emoji_at_default_position(self, tmp_path):
         emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
         _, fc = build_filter_graph([self._entry()], emoji_dir=emoji_dir)
-        assert "overlay=2:202:" in fc
+        assert "overlay=88:212:" in fc
 
     def test_frustration_emoji_at_default_position(self, tmp_path):
         emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
         _, fc = build_filter_graph([self._entry()], emoji_dir=emoji_dir)
-        assert "overlay=2:270:" in fc
+        assert "overlay=88:322:" in fc
 
     def test_custom_sentiment_emoji_position(self, tmp_path):
         emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
@@ -328,6 +328,22 @@ class TestBuildFilterGraph:
         emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
         _, fc = build_filter_graph([self._entry()], emoji_dir=emoji_dir, anger_x=5, anger_y=100)
         assert "overlay=5:100:" in fc
+
+    def test_default_row_labels_are_present(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
+        _, fc = build_filter_graph([self._entry()], emoji_dir=emoji_dir)
+        assert "drawtext=text='sentiment'" in fc
+        assert "drawtext=text='anger'" in fc
+        assert "drawtext=text='frustration'" in fc
+
+    def test_labels_are_rendered_above_emoji_rows(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
+        _, fc = build_filter_graph([self._entry()], emoji_dir=emoji_dir)
+        # Defaults: emoji_y=88, anger_y=232, frustration_y=322,
+        # fontsize=22, label_offset_y=12 => label y is row_y - 34.
+        assert "drawtext=text='sentiment':x=32:y=54:" in fc
+        assert "drawtext=text='anger':x=32:y=198:" in fc
+        assert "drawtext=text='frustration':x=32:y=288:" in fc
 
     def test_missing_sentiment_emoji_png_raises_file_not_found(self, tmp_path):
         emoji_dir = make_emoji_dir(tmp_path, ["neutral"])  # only neutral present
