@@ -5,6 +5,7 @@ const FRUSTRATION_EMOJI = ["😐", "😤", "😣", "🤬"] as const;
 
 interface Props {
   chunk: ScoredChunk | null;
+  setPlayhead?: (time: number) => void;
 }
 
 export function ChunkInspector({ chunk }: Props) {

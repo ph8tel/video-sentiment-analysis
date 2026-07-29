@@ -92,6 +92,27 @@ describe("App — after file loaded", () => {
     expect(screen.getByText(/timeline\.json/)).toBeInTheDocument();
   });
 
+  it("displays the overall tone and score", () => {
+    render(<App />);
+    loadTimeline();
+    expect(screen.getByText(/overall positive 7\/10/i)).toBeInTheDocument();
+  });
+
+  it("shows the chunk inspector when a chunk is clicked", () => {
+    render(<App />);
+    loadTimeline();
+    const chunkButton = screen.getByTestId("chunk-button-0");
+    fireEvent.click(chunkButton);
+    expect(screen.getByTestId("chunk-inspector")).toBeInTheDocument();
+  }); 
+  it("sets the playhead when a chunk is clicked", () => {
+    const setPlayheadMock = vi.fn();
+    render(<App />);
+    loadTimeline();
+    const chunkButton = screen.getByTestId("chunk-button-0");
+    fireEvent.click(chunkButton);
+    expect(setPlayheadMock).toHaveBeenCalledWith(0.0);
+  });
   it("shows a 'Load another file' button after load", () => {
     render(<App />);
     loadTimeline();
