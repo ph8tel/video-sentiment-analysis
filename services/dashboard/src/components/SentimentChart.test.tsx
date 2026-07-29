@@ -4,9 +4,24 @@ import { SentimentChart } from "./SentimentChart";
 import { ScoredChunk, OverallScore } from "../types/sentiment";
 
 const chunks: ScoredChunk[] = [
-  { start: 0.0, end: 3.2, tone: "SLIGHTLY_POSITIVE", score: 6, color: "#90EE90", text: "Hello." },
-  { start: 3.2, end: 7.5, tone: "POSITIVE",          score: 8, color: "#32CD32", text: "Great." },
-  { start: 7.5, end: 12.1, tone: "NEGATIVE",         score: 2, color: "#FF4500", text: "Bad." },
+  {
+    start: 0.0, end: 3.2, tone: "SLIGHTLY_POSITIVE", score: 6, color: "#90EE90", text: "Hello.",
+    anger_level: 0,
+    frustration_level: 0,
+    sarcasm_flag: false
+  },
+  {
+    start: 3.2, end: 7.5, tone: "POSITIVE", score: 8, color: "#32CD32", text: "Great.",
+    anger_level: 0,
+    frustration_level: 0,
+    sarcasm_flag: false
+  },
+  {
+    start: 7.5, end: 12.1, tone: "NEGATIVE", score: 2, color: "#FF4500", text: "Bad.",
+    anger_level: 0,
+    frustration_level: 0,
+    sarcasm_flag: false
+  },
 ];
 
 const overall: OverallScore = { score: 5.7, tone: "SLIGHTLY_POSITIVE" };

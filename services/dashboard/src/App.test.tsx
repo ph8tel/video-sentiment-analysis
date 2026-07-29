@@ -5,8 +5,18 @@ import { SentimentTimeline } from "./types/sentiment";
 
 const sampleTimeline: SentimentTimeline = {
   chunks: [
-    { start: 0.0, end: 3.2, tone: "SLIGHTLY_POSITIVE", score: 6, color: "#90EE90", text: "Hello." },
-    { start: 3.2, end: 7.5, tone: "POSITIVE",          score: 8, color: "#32CD32", text: "Great news." },
+    {
+      start: 0.0, end: 3.2, tone: "SLIGHTLY_POSITIVE", score: 6, color: "#90EE90", text: "Hello.",
+      anger_level: 0,
+      frustration_level: 0,
+      sarcasm_flag: false
+    },
+    {
+      start: 3.2, end: 7.5, tone: "POSITIVE", score: 8, color: "#32CD32", text: "Great news.",
+      anger_level: 0,
+      frustration_level: 0,
+      sarcasm_flag: false
+    },
   ],
   overall: { score: 7.0, tone: "POSITIVE" },
 };
