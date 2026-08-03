@@ -1,5 +1,7 @@
 # Environment
 .env
+# venv
+/.sent-env/
 
 # Python
 __pycache__/
