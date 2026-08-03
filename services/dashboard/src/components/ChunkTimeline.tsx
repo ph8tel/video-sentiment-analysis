@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import type { CSSProperties } from "react";
 import { ScoredChunk } from "../types/sentiment";
 
 interface Props {
@@ -31,9 +32,35 @@ export function ChunkTimeline({ chunks, selectedChunk, onChunkClick }: Props) {
     chunk,
   }));
 
+  // Recharts renders to SVG/canvas, which isn't reliably clickable via testing-library
+  // or a screen reader — expose a hidden, keyboard/test-accessible button per chunk.
+  const visuallyHidden: CSSProperties = {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap",
+    border: 0,
+  };
+
   return (
     <div data-testid="chunk-timeline">
       <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Chunk Sentiment</h3>
+      <div style={visuallyHidden}>
+        {chunks.map((chunk, index) => (
+          <button
+            key={index}
+            type="button"
+            data-testid={`chunk-button-${index}`}
+            onClick={() => onChunkClick(chunk)}
+          >
+            {`Chunk ${index}: ${chunk.start.toFixed(1)}s`}
+          </button>
+        ))}
+      </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
