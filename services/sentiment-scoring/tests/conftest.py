@@ -4,7 +4,7 @@ Shared fixtures for the sentiment-scoring test suite.
 MockLLMClient
 ─────────────
 Implements LLMClient without any network calls. Accepts a list of pre-canned
-responses that are returned in order; falls back to a NEUTRAL response when
+responses that are returned in order; falls back to a default response when
 the list is exhausted. Pass ``raises=`` to simulate LLM errors.
 
 Dependency injection
@@ -29,11 +29,14 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from llm_client import LLMClient  # noqa: E402
-from main import app, get_client  # noqa: E402
+from main import app, get_client, get_emotion_client  # noqa: E402
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 NEUTRAL_RESPONSE = json.dumps({"tone": "NEUTRAL", "score": 5})
+NEUTRAL_EMOTION_RESPONSE = json.dumps(
+    {"anger_level": 0, "frustration_level": 0, "sarcasm_flag": False}
+)
 
 
 class MockLLMClient(LLMClient):
@@ -42,22 +45,31 @@ class MockLLMClient(LLMClient):
 
     Args:
         responses: Ordered list of raw JSON strings to return.
-                   Falls back to a NEUTRAL response when exhausted.
+                   Falls back to ``fallback`` when exhausted.
+        fallback:  Response returned when ``responses`` is exhausted.
+                   Defaults to NEUTRAL_RESPONSE (tone/score format).
         raises:    If set, ``complete()`` raises this exception instead.
     """
 
     def __init__(
         self,
         responses: list[str] | None = None,
+        fallback: str = NEUTRAL_RESPONSE,
         raises: Exception | None = None,
     ) -> None:
         self._responses = iter(responses or [])
-        self._raises = raises
+        self._fallback  = fallback
+        self._raises    = raises
 
     async def complete(self, prompt: str) -> str:
         if self._raises is not None:
             raise self._raises
-        return next(self._responses, NEUTRAL_RESPONSE)
+        return next(self._responses, self._fallback)
+
+
+def make_emotion_mock(**kwargs) -> MockLLMClient:
+    """Return a MockLLMClient pre-configured to return neutral emotion responses."""
+    return MockLLMClient(fallback=NEUTRAL_EMOTION_RESPONSE, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +106,9 @@ def mock_llm_client():
 @pytest.fixture(autouse=True)
 def isolate_env(monkeypatch):
     """Prevent real env vars from leaking into tests."""
-    monkeypatch.setenv("LLM_PROVIDER", "ollama")
-    monkeypatch.setenv("OLLAMA_HOST",  "http://test-ollama:11434")
-    monkeypatch.setenv("OLLAMA_MODEL", "test-model")
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER",  "ollama")
+    monkeypatch.setenv("OLLAMA_HOST",   "http://test-ollama:11434")
+    monkeypatch.setenv("OLLAMA_MODEL",  "test-model")
+    monkeypatch.delenv("GROQ_API_KEY",  raising=False)
+    monkeypatch.delenv("EMOTION_MODEL", raising=False)
+

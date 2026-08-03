@@ -5,8 +5,18 @@ import { SentimentTimeline } from "./types/sentiment";
 
 const sampleTimeline: SentimentTimeline = {
   chunks: [
-    { start: 0.0, end: 3.2, tone: "SLIGHTLY_POSITIVE", score: 6, color: "#90EE90", text: "Hello." },
-    { start: 3.2, end: 7.5, tone: "POSITIVE",          score: 8, color: "#32CD32", text: "Great news." },
+    {
+      start: 0.0, end: 3.2, tone: "SLIGHTLY_POSITIVE", score: 6, color: "#90EE90", text: "Hello.",
+      anger_level: 0,
+      frustration_level: 0,
+      sarcasm_flag: false
+    },
+    {
+      start: 3.2, end: 7.5, tone: "POSITIVE", score: 8, color: "#32CD32", text: "Great news.",
+      anger_level: 0,
+      frustration_level: 0,
+      sarcasm_flag: false
+    },
   ],
   overall: { score: 7.0, tone: "POSITIVE" },
 };
@@ -82,6 +92,27 @@ describe("App — after file loaded", () => {
     expect(screen.getByText(/timeline\.json/)).toBeInTheDocument();
   });
 
+  it("displays the overall tone and score", () => {
+    render(<App />);
+    loadTimeline();
+    expect(screen.getByText(/overall positive 7\/10/i)).toBeInTheDocument();
+  });
+
+  it("shows the chunk inspector when a chunk is clicked", () => {
+    render(<App />);
+    loadTimeline();
+    const chunkButton = screen.getByTestId("chunk-button-0");
+    fireEvent.click(chunkButton);
+    expect(screen.getByTestId("chunk-inspector")).toBeInTheDocument();
+  }); 
+  it("sets the playhead when a chunk is clicked", () => {
+    const setPlayheadMock = vi.fn();
+    render(<App />);
+    loadTimeline();
+    const chunkButton = screen.getByTestId("chunk-button-0");
+    fireEvent.click(chunkButton);
+    expect(setPlayheadMock).toHaveBeenCalledWith(0.0);
+  });
   it("shows a 'Load another file' button after load", () => {
     render(<App />);
     loadTimeline();

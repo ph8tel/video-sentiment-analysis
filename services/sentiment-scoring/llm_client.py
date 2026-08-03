@@ -86,3 +86,17 @@ def get_llm_client() -> LLMClient:
     raise ValueError(
         f"Unknown LLM_PROVIDER: {provider!r}. Expected 'ollama' or 'groq'."
     )
+
+
+def get_emotion_llm_client() -> LLMClient:
+    """
+    Factory: same provider as get_llm_client() but honours the EMOTION_MODEL
+    env var to allow a different (typically larger) model for emotion scoring.
+
+    If EMOTION_MODEL is unset the tone-scoring model is reused.
+    """
+    client = get_llm_client()
+    emotion_model = os.getenv("EMOTION_MODEL")
+    if emotion_model:
+        client.model = emotion_model
+    return client

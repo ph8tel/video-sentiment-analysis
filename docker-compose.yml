@@ -26,6 +26,7 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+      EMOTION_MODEL: ${EMOTION_MODEL:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
     healthcheck:

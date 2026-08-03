@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+// services/dashboard/src/App.tsx
+/// <reference types="react/jsx-runtime" />
+
+import { useEffect, useState, useRef } from "react";
 import { SentimentTimeline, ScoredChunk } from "./types/sentiment";
 import { FileUpload } from "./components/FileUpload";
 import { PipelineUpload } from "./components/PipelineUpload";
 import { ChunkTimeline } from "./components/ChunkTimeline";
 import { SentimentChart } from "./components/SentimentChart";
+import { EmotionChart } from "./components/EmotionChart";
 import { ChunkInspector } from "./components/ChunkInspector";
 
 export function App() {
@@ -12,6 +16,14 @@ export function App() {
   const [selectedChunk, setSelectedChunk] = useState<ScoredChunk | null>(null);
   const [error, setError] = useState("");
   const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Function to set the playhead of the video
+  const setPlayhead = (time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+    }
+  };
 
   const handleLoad = (data: SentimentTimeline, name: string) => {
     if (renderedVideoUrl) {
@@ -54,6 +66,13 @@ export function App() {
       }
     };
   }, [renderedVideoUrl]);
+
+  const handleChunkSelected = (chunk: ScoredChunk | null) => {
+    setSelectedChunk(chunk);
+    if (chunk && videoRef.current) {
+      setPlayhead(chunk.start);
+    }
+  };
 
   return (
     <div
@@ -132,6 +151,7 @@ export function App() {
               <video
                 data-testid="rendered-video"
                 controls
+                ref={videoRef}
                 src={renderedVideoUrl}
                 style={{ width: "100%", maxWidth: 840, borderRadius: 8, background: "#000" }}
               />
@@ -155,10 +175,13 @@ export function App() {
               <ChunkTimeline
                 chunks={timeline.chunks}
                 selectedChunk={selectedChunk}
-                onChunkClick={setSelectedChunk}
+                onChunkClick={handleChunkSelected}
               />
               <div style={{ marginTop: 24 }}>
                 <SentimentChart chunks={timeline.chunks} overall={timeline.overall} />
+              </div>
+              <div style={{ marginTop: 24 }}>
+                <EmotionChart chunks={timeline.chunks} />
               </div>
             </div>
             <div
@@ -169,7 +192,7 @@ export function App() {
                 alignSelf: "start",
               }}
             >
-              <ChunkInspector chunk={selectedChunk} />
+              <ChunkInspector chunk={selectedChunk} setPlayhead={setPlayhead} />
             </div>
           </div>
         </>

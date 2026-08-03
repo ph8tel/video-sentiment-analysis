@@ -10,14 +10,15 @@ import json
 import pytest
 
 from color_mapper import Tone
-from main import app, get_client
-from tests.conftest import MockLLMClient
+from main import app, get_client, get_emotion_client
+from tests.conftest import MockLLMClient, NEUTRAL_EMOTION_RESPONSE, make_emotion_mock
 
 
 @pytest.fixture(autouse=True)
 def default_mock_llm():
-    """Replace the LLM client with a neutral mock for all tests in this module."""
+    """Replace both LLM clients with neutral mocks for all tests in this module."""
     app.dependency_overrides[get_client] = lambda: MockLLMClient()
+    app.dependency_overrides[get_emotion_client] = lambda: make_emotion_mock()
     yield
     app.dependency_overrides.clear()
 
@@ -46,7 +47,8 @@ class TestScoreEndpoint:
 
     def test_each_chunk_has_required_fields(self, http_client, sample_transcript):
         data = http_client.post("/score", json=sample_transcript).json()
-        required = {"start", "end", "tone", "score", "color", "text"}
+        required = {"start", "end", "tone", "score", "color", "text",
+                    "anger_level", "frustration_level", "sarcasm_flag"}
         for chunk in data["chunks"]:
             assert required.issubset(chunk.keys())
 
@@ -67,6 +69,21 @@ class TestScoreEndpoint:
         for chunk in data["chunks"]:
             assert chunk["tone"] in valid_tones
 
+    def test_anger_level_in_range(self, http_client, sample_transcript):
+        data = http_client.post("/score", json=sample_transcript).json()
+        for chunk in data["chunks"]:
+            assert 0 <= chunk["anger_level"] <= 3
+
+    def test_frustration_level_in_range(self, http_client, sample_transcript):
+        data = http_client.post("/score", json=sample_transcript).json()
+        for chunk in data["chunks"]:
+            assert 0 <= chunk["frustration_level"] <= 3
+
+    def test_sarcasm_flag_is_boolean(self, http_client, sample_transcript):
+        data = http_client.post("/score", json=sample_transcript).json()
+        for chunk in data["chunks"]:
+            assert isinstance(chunk["sarcasm_flag"], bool)
+
     def test_overall_has_score_and_tone(self, http_client, sample_transcript):
         data = http_client.post("/score", json=sample_transcript).json()
         assert "score" in data["overall"]
@@ -81,7 +98,7 @@ class TestScoreEndpoint:
         for i, chunk in enumerate(data["chunks"]):
             assert chunk["text"] == sample_transcript[i]["text"]
 
-    def test_specific_mock_response_is_used(self, http_client):
+    def test_specific_tone_mock_response_is_used(self, http_client):
         app.dependency_overrides[get_client] = lambda: MockLLMClient(
             responses=[json.dumps({"tone": "VERY_POSITIVE", "score": 10})]
         )
@@ -91,6 +108,19 @@ class TestScoreEndpoint:
         ).json()
         assert data["chunks"][0]["tone"] == "VERY_POSITIVE"
         assert data["chunks"][0]["score"] == 10
+
+    def test_specific_emotion_mock_response_is_used(self, http_client):
+        emotion_resp = json.dumps({"anger_level": 3, "frustration_level": 2, "sarcasm_flag": True})
+        app.dependency_overrides[get_emotion_client] = lambda: MockLLMClient(
+            responses=[emotion_resp], fallback=NEUTRAL_EMOTION_RESPONSE
+        )
+        data = http_client.post(
+            "/score",
+            json=[{"start": 0.0, "end": 2.0, "text": "Furious!"}],
+        ).json()
+        assert data["chunks"][0]["anger_level"] == 3
+        assert data["chunks"][0]["frustration_level"] == 2
+        assert data["chunks"][0]["sarcasm_flag"] is True
 
     def test_empty_array_returns_422(self, http_client):
         assert http_client.post("/score", json=[]).status_code == 422
@@ -109,7 +139,7 @@ class TestScoreEndpoint:
         )
         assert response.status_code == 422
 
-    def test_llm_error_returns_502(self, http_client):
+    def test_tone_llm_error_returns_502(self, http_client):
         app.dependency_overrides[get_client] = lambda: MockLLMClient(
             raises=RuntimeError("Ollama unreachable")
         )
@@ -119,7 +149,17 @@ class TestScoreEndpoint:
         )
         assert response.status_code == 502
 
-    def test_llm_bad_json_returns_502(self, http_client):
+    def test_emotion_llm_error_returns_502(self, http_client):
+        app.dependency_overrides[get_emotion_client] = lambda: MockLLMClient(
+            raises=RuntimeError("Emotion LLM unreachable")
+        )
+        response = http_client.post(
+            "/score",
+            json=[{"start": 0.0, "end": 2.0, "text": "test"}],
+        )
+        assert response.status_code == 502
+
+    def test_tone_bad_json_returns_502(self, http_client):
         app.dependency_overrides[get_client] = lambda: MockLLMClient(
             responses=["this is not json"]
         )
@@ -128,3 +168,14 @@ class TestScoreEndpoint:
             json=[{"start": 0.0, "end": 2.0, "text": "test"}],
         )
         assert response.status_code == 502
+
+    def test_emotion_bad_json_returns_502(self, http_client):
+        app.dependency_overrides[get_emotion_client] = lambda: MockLLMClient(
+            responses=["this is not emotion json"]
+        )
+        response = http_client.post(
+            "/score",
+            json=[{"start": 0.0, "end": 2.0, "text": "test"}],
+        )
+        assert response.status_code == 502
+
