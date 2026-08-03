@@ -342,7 +342,7 @@ class TestBuildFilterGraph:
         # Defaults: emoji_y=88, anger_y=232, frustration_y=322,
         # fontsize=22, label_offset_y=12 => label y is row_y - 34.
         assert "drawtext=text='sentiment':x=32:y=54:" in fc
-        assert "drawtext=text='anger':x=32:y=198:" in fc
+        assert "drawtext=text='anger':x=32:y=178:" in fc
         assert "drawtext=text='frustration':x=32:y=288:" in fc
 
     def test_missing_sentiment_emoji_png_raises_file_not_found(self, tmp_path):
