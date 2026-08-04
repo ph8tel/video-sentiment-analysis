@@ -28,3 +28,23 @@ export interface SentimentTimeline {
   chunks: ScoredChunk[];
   overall: OverallScore;
 }
+
+export interface MediaIngestChunk {
+  start: number;
+  end: number;
+  text: string;
+  speaker: string;
+}
+
+export interface MediaIngestResult {
+  chunks: MediaIngestChunk[];
+  speaker_order: string[];
+  meta: Record<string, unknown>;
+}
+
+export interface MultiSpeakerTimelines {
+  overall: SentimentTimeline;
+  speakerLeft: SentimentTimeline | null;
+  speakerRight: SentimentTimeline | null;
+}
+

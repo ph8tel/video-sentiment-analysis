@@ -15,6 +15,7 @@ interface Props {
   chunks: ScoredChunk[];
   selectedChunk: ScoredChunk | null;
   onChunkClick: (chunk: ScoredChunk) => void;
+  title?: string;
 }
 
 interface ChartDatum {
@@ -24,7 +25,7 @@ interface ChartDatum {
   chunk: ScoredChunk;
 }
 
-export function ChunkTimeline({ chunks, selectedChunk, onChunkClick }: Props) {
+export function ChunkTimeline({ chunks, selectedChunk, onChunkClick, title = "Chunk Sentiment" }: Props) {
   const data: ChartDatum[] = chunks.map((chunk) => ({
     label: `${chunk.start.toFixed(1)}s`,
     score: chunk.score,
@@ -46,15 +47,21 @@ export function ChunkTimeline({ chunks, selectedChunk, onChunkClick }: Props) {
     border: 0,
   };
 
+  // Keep the default testid stable for existing single-timeline usage; give
+  // additional (e.g. per-speaker) instances a unique testid so several can
+  // coexist on screen at once.
+  const testId =
+    title === "Chunk Sentiment" ? "chunk-timeline" : `chunk-timeline-${title.toLowerCase().replace(/\s+/g, "-")}`;
+
   return (
-    <div data-testid="chunk-timeline">
-      <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Chunk Sentiment</h3>
+    <div data-testid={testId}>
+      <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>{title}</h3>
       <div style={visuallyHidden}>
         {chunks.map((chunk, index) => (
           <button
             key={index}
             type="button"
-            data-testid={`chunk-button-${index}`}
+            data-testid={`${testId}-chunk-button-${index}`}
             onClick={() => onChunkClick(chunk)}
           >
             {`Chunk ${index}: ${chunk.start.toFixed(1)}s`}

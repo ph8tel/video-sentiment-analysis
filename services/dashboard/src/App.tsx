@@ -2,9 +2,10 @@
 /// <reference types="react/jsx-runtime" />
 
 import { useEffect, useState, useRef } from "react";
-import { SentimentTimeline, ScoredChunk } from "./types/sentiment";
+import { MultiSpeakerTimelines, SentimentTimeline, ScoredChunk } from "./types/sentiment";
 import { FileUpload } from "./components/FileUpload";
 import { PipelineUpload } from "./components/PipelineUpload";
+import { VideoUpload } from "./components/VideoUpload";
 import { ChunkTimeline } from "./components/ChunkTimeline";
 import { SentimentChart } from "./components/SentimentChart";
 import { EmotionChart } from "./components/EmotionChart";
@@ -12,6 +13,8 @@ import { ChunkInspector } from "./components/ChunkInspector";
 
 export function App() {
   const [timeline, setTimeline] = useState<SentimentTimeline | null>(null);
+  const [speakerLeftTimeline, setSpeakerLeftTimeline] = useState<SentimentTimeline | null>(null);
+  const [speakerRightTimeline, setSpeakerRightTimeline] = useState<SentimentTimeline | null>(null);
   const [filename, setFilename] = useState("");
   const [selectedChunk, setSelectedChunk] = useState<ScoredChunk | null>(null);
   const [error, setError] = useState("");
@@ -30,6 +33,8 @@ export function App() {
       URL.revokeObjectURL(renderedVideoUrl);
     }
     setTimeline(data);
+    setSpeakerLeftTimeline(null);
+    setSpeakerRightTimeline(null);
     setFilename(name);
     setSelectedChunk(null);
     setRenderedVideoUrl(null);
@@ -42,6 +47,22 @@ export function App() {
     }
     const url = URL.createObjectURL(video);
     setTimeline(data);
+    setSpeakerLeftTimeline(null);
+    setSpeakerRightTimeline(null);
+    setFilename(`Generated from ${sourceName}`);
+    setSelectedChunk(null);
+    setRenderedVideoUrl(url);
+    setError("");
+  };
+
+  const handleVideoComplete = (data: MultiSpeakerTimelines, video: Blob, sourceName: string) => {
+    if (renderedVideoUrl) {
+      URL.revokeObjectURL(renderedVideoUrl);
+    }
+    const url = URL.createObjectURL(video);
+    setTimeline(data.overall);
+    setSpeakerLeftTimeline(data.speakerLeft);
+    setSpeakerRightTimeline(data.speakerRight);
     setFilename(`Generated from ${sourceName}`);
     setSelectedChunk(null);
     setRenderedVideoUrl(url);
@@ -53,6 +74,8 @@ export function App() {
       URL.revokeObjectURL(renderedVideoUrl);
     }
     setTimeline(null);
+    setSpeakerLeftTimeline(null);
+    setSpeakerRightTimeline(null);
     setFilename("");
     setSelectedChunk(null);
     setRenderedVideoUrl(null);
@@ -109,6 +132,8 @@ export function App() {
         <div style={{ marginTop: 16, display: "grid", gap: 16 }}>
           <PipelineUpload onComplete={handlePipelineComplete} onError={setError} />
 
+          <VideoUpload onComplete={handleVideoComplete} onError={setError} />
+
           <div
             style={{
               border: "1px solid #dfe4ef",
@@ -121,7 +146,7 @@ export function App() {
             <p style={{ margin: "0 0 12px", color: "#56637a", fontSize: 13 }}>
               Already have sentiment_timeline.json? Load it directly to inspect chunks.
             </p>
-          <FileUpload onLoad={handleLoad} onError={setError} />
+            <FileUpload onLoad={handleLoad} onError={setError} />
           </div>
 
           {error && (
@@ -183,6 +208,26 @@ export function App() {
               <div style={{ marginTop: 24 }}>
                 <EmotionChart chunks={timeline.chunks} />
               </div>
+              {speakerLeftTimeline && (
+                <div style={{ marginTop: 24 }}>
+                  <ChunkTimeline
+                    chunks={speakerLeftTimeline.chunks}
+                    selectedChunk={selectedChunk}
+                    onChunkClick={handleChunkSelected}
+                    title="Speaker 1"
+                  />
+                </div>
+              )}
+              {speakerRightTimeline && (
+                <div style={{ marginTop: 24 }}>
+                  <ChunkTimeline
+                    chunks={speakerRightTimeline.chunks}
+                    selectedChunk={selectedChunk}
+                    onChunkClick={handleChunkSelected}
+                    title="Speaker 2"
+                  />
+                </div>
+              )}
             </div>
             <div
               style={{

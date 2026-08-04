@@ -187,7 +187,7 @@ make test
 ```
 
 ```bash
-# Dashboard — Vitest (53 tests, no build step needed)
+# Dashboard — Vitest (89 tests, no build step needed)
 cd services/dashboard
 npm install --cache "$TMPDIR/.npm-cache"
 npx vitest run
