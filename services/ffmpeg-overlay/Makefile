@@ -20,7 +20,7 @@ test-unit:
 	$(PYTEST) tests/test_filter_generator.py tests/test_preview.py -v
 
 test-render:
-	$(PYTEST) tests/test_render.py -v
+	$(PYTEST) tests/test_render.py tests/test_render_multi.py -v
 
 lint:
 	$(PYTHON) -m py_compile filter_generator.py main.py

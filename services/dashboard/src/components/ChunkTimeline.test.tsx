@@ -54,4 +54,25 @@ describe("ChunkTimeline", () => {
       )
     ).not.toThrow();
   });
+
+  it("renders a custom title when provided", () => {
+    render(<ChunkTimeline chunks={chunks} selectedChunk={null} onChunkClick={vi.fn()} title="Speaker 1" />);
+    expect(screen.getByText("Speaker 1")).toBeInTheDocument();
+  });
+
+  it("uses a unique testid derived from a custom title", () => {
+    render(<ChunkTimeline chunks={chunks} selectedChunk={null} onChunkClick={vi.fn()} title="Speaker 1" />);
+    expect(screen.getByTestId("chunk-timeline-speaker-1")).toBeInTheDocument();
+  });
+
+  it("allows two ChunkTimeline instances with different titles to coexist", () => {
+    render(
+      <>
+        <ChunkTimeline chunks={chunks} selectedChunk={null} onChunkClick={vi.fn()} />
+        <ChunkTimeline chunks={chunks} selectedChunk={null} onChunkClick={vi.fn()} title="Speaker 2" />
+      </>
+    );
+    expect(screen.getByTestId("chunk-timeline")).toBeInTheDocument();
+    expect(screen.getByTestId("chunk-timeline-speaker-2")).toBeInTheDocument();
+  });
 });

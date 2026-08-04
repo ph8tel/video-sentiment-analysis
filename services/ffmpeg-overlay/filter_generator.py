@@ -263,3 +263,140 @@ def build_filter_graph(
 
     return all_emoji_paths, ";".join(parts)
 
+
+def _sentiment_emoji_paths(entries: List[TimelineEntry], emoji_dir: Path) -> list[Path]:
+    paths: list[Path] = []
+    for entry in entries:
+        tone = score_to_tone(entry.score)
+        png = emoji_dir / f"{tone}.png"
+        if not png.exists():
+            raise FileNotFoundError(
+                f"Emoji asset missing: {png}. "
+                "Ensure assets/emoji/ is present in the deployment image."
+            )
+        paths.append(png)
+    return paths
+
+
+def build_multi_speaker_filter_graph(
+    overall: List[TimelineEntry],
+    speaker_left: List[TimelineEntry],
+    speaker_right: List[TimelineEntry],
+    emoji_dir: Path | None = None,
+    left_x: int = 40,
+    left_y: int = 40,
+    right_x: str = "main_w-overlay_w-40",
+    right_y: int = 40,
+    overall_x: str = "(main_w-overlay_w)/2",
+    overall_y: str = "main_h-overlay_h-40",
+    left_label: str | None = "Speaker 1",
+    right_label: str | None = "Speaker 2",
+    overall_label: str | None = "Overall",
+    label_fontsize: int = 22,
+    label_fontcolor: str = "white",
+    label_boxcolor: str = "black@0.45",
+    label_offset_y: int = 12,
+    overall_emoji_size: int = 72,
+) -> tuple[list[Path], str]:
+    """
+    Build a filter_complex graph overlaying three independent sentiment-emoji
+    tracks at fixed screen positions:
+
+      speaker_left:   top-left     (left_x, left_y)
+      speaker_right:  top-right    (right_x, right_y) — right-anchored expression
+      overall:        bottom-middle (overall_x, overall_y) — centered expression
+
+    Unlike build_filter_graph, only the sentiment emoji is shown per track (no
+    anger/frustration rows) to avoid cluttering three simultaneous positions,
+    and no drawbox colour band is drawn.
+
+    Any of the three entry lists may be empty (its track is simply omitted),
+    but at least one must be non-empty.
+
+    ``overall_emoji_size`` is only used to position the "Overall" label above
+    its emoji row: FFmpeg's ``drawtext`` filter has no ``overlay_h`` variable
+    (that's only available inside ``overlay`` filters), so the label offset is
+    computed from this assumed square emoji size instead of parsing
+    ``overall_y``.
+
+    Returns
+    -------
+    emoji_paths : list[Path]
+        Paths ordered as: all overall paths, then all speaker_left paths,
+        then all speaker_right paths. The caller passes each as a separate
+        ``-i`` argument to FFmpeg starting at index 1.
+    filter_complex : str
+        Semicolon-separated filter_complex string. Final output stream is
+        labelled ``[out]``.
+    """
+    if emoji_dir is None:
+        emoji_dir = EMOJI_ASSET_DIR
+    if not overall and not speaker_left and not speaker_right:
+        raise ValueError("At least one of overall/speaker_left/speaker_right must be non-empty")
+
+    overall_paths = _sentiment_emoji_paths(overall, emoji_dir)
+    left_paths = _sentiment_emoji_paths(speaker_left, emoji_dir)
+    right_paths = _sentiment_emoji_paths(speaker_right, emoji_dir)
+    all_emoji_paths = overall_paths + left_paths + right_paths
+
+    def _escape_drawtext_text(text: str) -> str:
+        return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+
+    parts: list[str] = []
+
+    # Optional static row labels, drawn directly on the video before overlays.
+    # Left uses a numeric offset (matches build_filter_graph); right/overall
+    # use FFmpeg drawtext expressions since their track positions are
+    # themselves expressions (drawtext has no "overlay_w" variable to align to).
+    overall_label_y = f"main_h-{overall_emoji_size + 40 + label_fontsize + label_offset_y}"
+    label_specs: list[tuple[str | None, str, str]] = [
+        (left_label if speaker_left else None, str(left_x), str(left_y - label_fontsize - label_offset_y)),
+        (right_label if speaker_right else None, "main_w-text_w-40", str(right_y - label_fontsize - label_offset_y)),
+        (overall_label if overall else None, "(main_w-text_w)/2", overall_label_y),
+    ]
+    current = "0:v"
+    label_idx = 0
+    for text, label_x, label_y in label_specs:
+        if not text:
+            continue
+        next_label = f"mslabel{label_idx}"
+        parts.append(
+            f"[{current}]drawtext=text='{_escape_drawtext_text(text)}':"
+            f"x={label_x}:y={label_y}:"
+            f"fontcolor={label_fontcolor}:fontsize={label_fontsize}:"
+            f"box=1:boxcolor={label_boxcolor}[{next_label}]"
+        )
+        current = next_label
+        label_idx += 1
+
+    total_overlays = len(overall_paths) + len(left_paths) + len(right_paths)
+    overlay_idx = 0
+
+    def _overlay_part(input_idx: int, x: str | int, y: str | int, entry: TimelineEntry) -> str:
+        nonlocal current, overlay_idx
+        is_last = (overlay_idx == total_overlays - 1)
+        out_label = "out" if is_last else f"msov{overlay_idx}"
+        part = (
+            f"[{current}][{input_idx}:v]"
+            f"overlay={x}:{y}:"
+            f"enable='between(t,{entry.start},{entry.end})'"
+            f"[{out_label}]"
+        )
+        current = out_label
+        overlay_idx += 1
+        return part
+
+    # Input indices: 1..N_overall, then N_overall+1..+N_left, then +N_right
+    offset = 1
+    for i, entry in enumerate(overall):
+        parts.append(_overlay_part(offset + i, overall_x, overall_y, entry))
+    offset += len(overall)
+    for i, entry in enumerate(speaker_left):
+        parts.append(_overlay_part(offset + i, left_x, left_y, entry))
+    offset += len(speaker_left)
+    for i, entry in enumerate(speaker_right):
+        parts.append(_overlay_part(offset + i, right_x, right_y, entry))
+
+    return all_emoji_paths, ";".join(parts)
+
+

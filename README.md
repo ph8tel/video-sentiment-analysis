@@ -2,10 +2,15 @@
 
 A pipeline that scores the emotional tone of video transcripts with a local LLM, then bakes colored sentiment overlays directly into the video — no cloud, no vendor lock-in.
 
+Supports two flows:
+1. **Single timeline** — you already have a transcript (or a video + transcript) and want one overall sentiment overlay.
+2. **Two-speaker video** — drop a single video of two people talking and get a synced transcript, per-speaker diarization, and a 3-position overlay (overall + both speakers) baked in.
+
 ---
 
 ## How it works
 
+### Single timeline
 ```
 transcript.json
     │
@@ -24,7 +29,35 @@ transcript.json
 └──────────────┘
 ```
 
-Three independent services share a single JSON contract (`sentiment_timeline.json`). Each is testable in isolation — you don't need a running LLM to test the video renderer, and you don't need a video to test the scoring pipeline.
+### Two-speaker video
+```
+video.mp4 (2 speakers)
+    │
+    ▼
+┌───────────────────────────────┐
+│  Media Ingest                 │  POST /ingest
+│  ffmpeg extract → Whisper STT │  → {chunks (speaker-labeled),
+│  + Pyannote diarization       │     speaker_order, meta}
+└───────────────────────────────┘
+    │
+    ▼  (split chunks by speaker, score 3×)
+┌─────────────────────────┐
+│  Sentiment Scoring      │  POST /score  (overall, speaker 1, speaker 2)
+└─────────────────────────┘
+    │
+    ▼
+┌───────────────────────┐
+│ FFmpeg Overlay        │  POST /render-multi
+│ overall (bottom-mid)  │  → video with 3 emoji overlays
+│ speaker 1 (top-left)  │
+│ speaker 2 (top-right) │
+└───────────────────────┘
+    │
+    ▼
+Dashboard UI — 3 timelines (overall + 2 speakers), rendered video preview
+```
+
+Each service is independently testable — you don't need a running LLM to test the video renderer, and you don't need Whisper/Pyannote reachable to test the scoring or overlay services.
 
 ---
 
@@ -32,9 +65,12 @@ Three independent services share a single JSON contract (`sentiment_timeline.jso
 
 | Service | Port | Input | Output |
 |---|---|---|---|
-| [ffmpeg-overlay](services/ffmpeg-overlay/) | 8001 | `video.mp4` + timeline JSON | `video_with_overlay.mp4` |
+| [media-ingest](services/media-ingest/) | 8003 | `video.mp4` (2 speakers) | Speaker-labeled transcript chunks + `speaker_order` |
 | [sentiment-scoring](services/sentiment-scoring/) | 8002 | `transcript.json` | `sentiment_timeline.json` |
-| [dashboard](services/dashboard/) | 3000 | `sentiment_timeline.json` | Interactive visualization |
+| [ffmpeg-overlay](services/ffmpeg-overlay/) | 8001 | `video.mp4` + timeline JSON(s) | `video_with_overlay.mp4` via `/render` (1 timeline) or `/render-multi` (overall + 2 speakers) |
+| [dashboard](services/dashboard/) | 3000 | `sentiment_timeline.json`, or a transcript+video, or a two-speaker video | Interactive visualization |
+
+media-ingest calls out to a Whisper STT service and a Pyannote diarization service running elsewhere on your LAN (see `WHISPER_URL`/`PYANNOTE_URL` below) — they are not part of this repo's Docker Compose stack.
 
 ---
 
@@ -62,6 +98,7 @@ docker compose up --build
 # Services are available at:
 #   http://localhost:8001  — FFmpeg Overlay
 #   http://localhost:8002  — Sentiment Scoring
+#   http://localhost:8003  — Media Ingest
 #   http://localhost:3000  — Dashboard
 
 # 3. Verify all services are healthy
@@ -72,6 +109,7 @@ docker compose up --build
 
 ## End-to-end usage
 
+### Single timeline
 ```bash
 # 1. Score a transcript
 curl -X POST http://localhost:8002/score \
@@ -87,6 +125,30 @@ curl -X POST http://localhost:8001/render \
 
 # 3. Open the dashboard, drag-and-drop sentiment_timeline.json
 open http://localhost:3000
+```
+
+### Two-speaker video
+Easiest via the dashboard's "Two-Speaker Video" card at `http://localhost:3000` — drop the MP4 and it runs the full chain below for you. Or via curl:
+
+```bash
+# 1. Transcribe + diarize
+curl -X POST http://localhost:8003/ingest \
+  -F "video=@conversation.mp4" \
+  -o ingest.json
+
+# 2. Split chunks by speaker_order[0]/[1] and score each (overall shown here)
+curl -X POST http://localhost:8002/score \
+  -H "Content-Type: application/json" \
+  -d "$(jq -c '[.chunks[] | {start, end, text}]' ingest.json)" \
+  -o overall_timeline.json
+
+# 3. Render the 3-position overlay (repeat step 2 per speaker for the other two fields)
+curl -X POST http://localhost:8001/render-multi \
+  -F "video=@conversation.mp4" \
+  -F "overall_timeline=$(jq -c '.chunks' overall_timeline.json)" \
+  -F 'speaker_left_timeline=[]' \
+  -F 'speaker_right_timeline=[]' \
+  -o video_with_multi_overlay.mp4
 ```
 
 ---
@@ -115,7 +177,10 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 | `OLLAMA_HOST` | `http://host.docker.internal:11434` | Address the scoring container can reach; use a LAN IP if Ollama runs on another machine |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Model to use for scoring |
 | `GROQ_API_KEY` | *(empty)* | Set when switching to Groq |
-| `MAX_UPLOAD_SIZE_MB` | `500` | Max video upload size for the overlay service |
+| `MAX_UPLOAD_SIZE_MB` | `500` | Max video upload size for the overlay and media-ingest services |
+| `WHISPER_URL` | `http://192.168.1.188:5000` | LAN address of the Whisper STT service used by media-ingest |
+| `PYANNOTE_URL` | `http://192.168.1.188:3003` | LAN address of the Pyannote diarization service used by media-ingest |
+| `NUM_SPEAKERS` | `2` | Speaker count forced during diarization |
 
 Switching from Ollama to Groq post-MVP requires only:
 ```bash
@@ -148,7 +213,7 @@ Emoji graphics provided by [Twemoji](https://github.com/twitter/twemoji), Copyri
 Schemas for both shared JSON contracts live in [`shared/schemas/`](shared/schemas/):
 
 - [`transcript.schema.json`](shared/schemas/transcript.schema.json) — input to the scoring service
-- [`sentiment_timeline.schema.json`](shared/schemas/sentiment_timeline.schema.json) — shared contract between all three services
+- [`sentiment_timeline.schema.json`](shared/schemas/sentiment_timeline.schema.json) — shared contract between the scoring, overlay, and dashboard services
 
 Sample data is in [`examples/`](examples/).
 
@@ -182,12 +247,18 @@ Each service has its own test suite. Unit and API tests run without any external
 cd services/ffmpeg-overlay
 make test-unit
 
-# Run all tests including render integration (requires FFmpeg installed)
+# Run all tests including render + render-multi integration (requires FFmpeg installed)
 make test
 ```
 
 ```bash
-# Dashboard — Vitest (53 tests, no build step needed)
+# Media Ingest — merge logic + API tests (mocked Whisper/Pyannote, real FFmpeg)
+cd services/media-ingest
+make test-unit
+```
+
+```bash
+# Dashboard — Vitest (89 tests, no build step needed)
 cd services/dashboard
 npm install --cache "$TMPDIR/.npm-cache"
 npx vitest run

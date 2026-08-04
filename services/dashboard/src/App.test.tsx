@@ -53,6 +53,12 @@ describe("App — initial state", () => {
     expect(screen.getByTestId("video-input")).toBeInTheDocument();
   });
 
+  it("shows the two-speaker video uploader", () => {
+    render(<App />);
+    expect(screen.getByTestId("video-upload")).toBeInTheDocument();
+    expect(screen.getByTestId("two-speaker-video-input")).toBeInTheDocument();
+  });
+
   it("shows the FileUpload component before any file is loaded", () => {
     render(<App />);
     expect(screen.getByTestId("file-upload")).toBeInTheDocument();
@@ -102,5 +108,12 @@ describe("App — after file loaded", () => {
     render(<App />);
     loadTimeline();
     expect(screen.getByText(/load another file/i)).toBeInTheDocument();
+  });
+
+  it("does not show per-speaker timelines for a single-file load", () => {
+    render(<App />);
+    loadTimeline();
+    expect(screen.queryByTestId("chunk-timeline-speaker-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chunk-timeline-speaker-2")).not.toBeInTheDocument();
   });
 });
