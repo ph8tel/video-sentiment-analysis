@@ -54,6 +54,42 @@ curl -X POST http://localhost:8001/render \
 
 ---
 
+### `POST /render-multi`
+Renders a new MP4 with **three independent sentiment-emoji overlays** baked in: one for the overall conversation and one for each of two speakers. Designed for two-person conversation videos processed through `media-ingest`.
+
+| Position | Track |
+|---|---|
+| Bottom-middle | Overall conversation sentiment |
+| Top-left | Speaker 1 (left) sentiment |
+| Top-right | Speaker 2 (right) sentiment |
+
+Unlike `/render`, only the sentiment emoji is drawn per track (no anger/frustration rows) and there is no drawbox color band — this keeps three simultaneous overlays visually uncluttered.
+
+Accepts `multipart/form-data`:
+
+| Field | Type | Description |
+|---|---|---|
+| `video` | file | Source `.mp4` video |
+| `overall_timeline` | string | JSON array of `TimelineEntry` objects for the whole conversation. May be `"[]"`. |
+| `speaker_left_timeline` | string | JSON array of `TimelineEntry` objects for the top-left speaker. May be `"[]"`. |
+| `speaker_right_timeline` | string | JSON array of `TimelineEntry` objects for the top-right speaker. May be `"[]"`. |
+
+At least one of the three timelines must be non-empty.
+
+**Example with curl:**
+```bash
+curl -X POST http://localhost:8001/render-multi \
+  -F "video=@conversation.mp4" \
+  -F 'overall_timeline=[{"start":0,"end":3.2,"score":6,"color":"#90EE90"}]' \
+  -F 'speaker_left_timeline=[{"start":0,"end":3.2,"score":8,"color":"#32CD32"}]' \
+  -F 'speaker_right_timeline=[{"start":0,"end":3.2,"score":4,"color":"#FFA500"}]' \
+  -o video_with_multi_overlay.mp4
+```
+
+**Response** — `video/mp4` file download
+
+---
+
 ## Timeline entry fields
 
 | Field | Type | Constraints | Description |

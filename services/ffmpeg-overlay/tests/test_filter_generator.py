@@ -8,6 +8,7 @@ from filter_generator import (
     anger_level_to_emoji,
     build_filter_chain,
     build_filter_graph,
+    build_multi_speaker_filter_graph,
     frustration_level_to_emoji,
     hex_to_ffmpeg_color,
     score_to_tone,
@@ -369,3 +370,89 @@ class TestBuildFilterGraph:
         emoji_dir = make_emoji_dir(tmp_path, ALL_STEMS)
         with pytest.raises(ValueError, match="empty"):
             build_filter_graph([], emoji_dir=emoji_dir)
+
+
+class TestBuildMultiSpeakerFilterGraph:
+    """build_multi_speaker_filter_graph — 3-position sentiment-only overlay."""
+
+    def _entry(self, start=0.0, end=3.0, score=5, color="#CCCCCC"):
+        return TimelineEntry(start=start, end=end, score=score, color=color)
+
+    def test_paths_ordered_overall_then_left_then_right(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        overall = [self._entry(score=0)]       # very_negative
+        left = [self._entry(score=10)]         # very_positive
+        right = [self._entry(score=5)]         # neutral
+        paths, _ = build_multi_speaker_filter_graph(overall, left, right, emoji_dir=emoji_dir)
+        assert [p.name for p in paths] == ["very_negative.png", "very_positive.png", "neutral.png"]
+
+    def test_overlay_count_equals_total_entries(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        overall = [self._entry(0.0, 1.0), self._entry(1.0, 2.0)]
+        left = [self._entry(0.0, 1.0)]
+        right = [self._entry(0.0, 1.0)]
+        _, fc = build_multi_speaker_filter_graph(overall, left, right, emoji_dir=emoji_dir)
+        assert fc.count("overlay=") == 4
+
+    def test_no_drawbox_in_output(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph([self._entry()], [], [], emoji_dir=emoji_dir)
+        assert "drawbox=" not in fc
+
+    def test_filter_complex_final_output_labeled_out(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph([self._entry()], [self._entry()], [self._entry()], emoji_dir=emoji_dir)
+        assert "[out]" in fc
+
+    def test_left_position_is_numeric_default(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph([], [self._entry()], [], emoji_dir=emoji_dir)
+        assert "overlay=40:40:" in fc
+
+    def test_right_position_uses_right_anchored_expression(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph([], [], [self._entry()], emoji_dir=emoji_dir)
+        assert "overlay=main_w-overlay_w-40:40:" in fc
+
+    def test_overall_position_uses_centered_bottom_expression(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph([self._entry()], [], [], emoji_dir=emoji_dir)
+        assert "overlay=(main_w-overlay_w)/2:main_h-overlay_h-40:" in fc
+
+    def test_custom_positions_applied(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph(
+            [], [self._entry()], [], emoji_dir=emoji_dir, left_x=5, left_y=6,
+        )
+        assert "overlay=5:6:" in fc
+
+    def test_default_labels_present_for_non_empty_tracks(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph(
+            [self._entry()], [self._entry()], [self._entry()], emoji_dir=emoji_dir
+        )
+        assert "drawtext=text='Overall'" in fc
+        assert "drawtext=text='Speaker 1'" in fc
+        assert "drawtext=text='Speaker 2'" in fc
+
+    def test_label_omitted_for_empty_track(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        _, fc = build_multi_speaker_filter_graph([self._entry()], [], [], emoji_dir=emoji_dir)
+        assert "drawtext=text='Speaker 1'" not in fc
+        assert "drawtext=text='Speaker 2'" not in fc
+
+    def test_only_one_track_non_empty_still_works(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        paths, fc = build_multi_speaker_filter_graph([], [self._entry()], [], emoji_dir=emoji_dir)
+        assert len(paths) == 1
+        assert "[out]" in fc
+
+    def test_missing_emoji_png_raises_file_not_found(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, ["neutral"])  # only neutral present
+        with pytest.raises(FileNotFoundError, match="very_negative.png"):
+            build_multi_speaker_filter_graph([self._entry(score=0)], [], [], emoji_dir=emoji_dir)
+
+    def test_all_tracks_empty_raises_value_error(self, tmp_path):
+        emoji_dir = make_emoji_dir(tmp_path, SENTIMENT_TONES)
+        with pytest.raises(ValueError, match="non-empty"):
+            build_multi_speaker_filter_graph([], [], [], emoji_dir=emoji_dir)
